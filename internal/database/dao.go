@@ -2,18 +2,22 @@ package database
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// Collector
 func CreateCollector(aesKey []byte) (*Collector, error) {
 	collection := GetDB().Collection("collectors")
 	c := &Collector{
 		ID:        primitive.NewObjectID(),
-		IP:        "", // 设置空字符串或其他默认值
 		UUID:      uuid.New().String(),
 		AESKey:    aesKey,
 		CreatedAt: time.Now(),
@@ -26,58 +30,57 @@ func CreateCollector(aesKey []byte) (*Collector, error) {
 	}
 	return c, nil
 }
-
-func UpdateCollector(c *Collector) error {
+func GetCollectorByUUID(uuid string) (*Collector, error) {
 	collection := GetDB().Collection("collectors")
-	filter := bson.D{{Key: "_id", Value: c.ID}}
-	update := bson.D{{Key: "$set", Value: bson.D{
-		{Key: "ip", Value: c.IP},
-		{Key: "aes_key", Value: c.AESKey},
-		{Key: "updated_at", Value: time.Now()},
-	}}}
-	_, err := collection.UpdateOne(context.Background(), filter, update)
-	return err
-}
+	var collector Collector
+	filter := bson.M{"uuid": uuid}
 
-func DeleteCollector(id primitive.ObjectID) error {
-	collection := GetDB().Collection("collectors")
-	filter := bson.D{{Key: "_id", Value: id}}
-	_, err := collection.DeleteOne(context.Background(), filter)
-	return err
-}
-
-func FindCollectorByID(id primitive.ObjectID) (*Collector, error) {
-	collection := GetDB().Collection("collectors")
-	filter := bson.D{{Key: "_id", Value: id}}
-	var c Collector
-	err := collection.FindOne(context.Background(), filter).Decode(&c)
+	err := collection.FindOne(context.Background(), filter).Decode(&collector)
 	if err != nil {
-		return nil, err
-	}
-	return &c, nil
-}
-
-func FindAllCollectors() ([]Collector, error) {
-	collection := GetDB().Collection("collectors")
-	cur, err := collection.Find(context.Background(), bson.D{})
-	if err != nil {
-		return nil, err
-	}
-	defer cur.Close(context.Background())
-
-	var collectors []Collector
-	for cur.Next(context.Background()) {
-		var c Collector
-		err := cur.Decode(&c)
-		if err != nil {
-			return nil, err
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("Collector not found")
 		}
-		collectors = append(collectors, c)
-	}
-
-	if err := cur.Err(); err != nil {
 		return nil, err
 	}
 
-	return collectors, nil
+	return &collector, nil
+}
+
+func (c *Collector) GetAESKey() ([]byte, error) {
+	if c.AESKey == nil {
+		return nil, fmt.Errorf("AESKey is not set")
+	}
+	return c.AESKey, nil
+}
+
+func convertToNumber(m map[string]interface{}) {
+	for key, value := range m {
+		switch v := value.(type) {
+		case string:
+			if num, err := strconv.Atoi(v); err == nil {
+				m[key] = num
+			} else if num64, err := strconv.ParseInt(v, 10, 64); err == nil {
+				m[key] = num64
+			}
+		case float32, float64:
+			m[key] = int64(v.(float64))
+		}
+	}
+}
+
+func (c *Collector) AppendLogs(logs []map[string]interface{}) error {
+	for _, log := range logs {
+		convertToNumber(log)
+	}
+	c.Logs = append(c.Logs, logs...)
+	filter := bson.M{"_id": c.ID}
+	update := bson.M{"$set": bson.M{"logs": c.Logs}}
+	opts := options.Update().SetUpsert(false)
+	db := GetDB()
+	collection := db.Collection("collectors")
+	_, err := collection.UpdateOne(context.TODO(), filter, update, opts)
+	if err != nil {
+		return err
+	}
+	return nil
 }

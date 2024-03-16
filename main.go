@@ -11,6 +11,8 @@ func main() {
 
 	// 定义路由和处理函数
 	routers.SetupCollector(router)
+	routers.SetupLog(router)
+	routers.SetupQuery(router)
 	// routers.SetupQuery(router)
 	// 启动HTTP服务器，默认监听在localhost:8080
 	router.Run()

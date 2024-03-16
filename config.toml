@@ -1,0 +1,2 @@
+[crypto]
+RSAPublicKeyPath ="/ouryun/LogCollector-server/publicKey.pem"  

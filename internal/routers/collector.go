@@ -20,7 +20,6 @@ func SetupCollector(router *gin.Engine) *gin.Engine {
 func collectorHandler(c *gin.Context) {
 	requestBody, err := c.GetRawData()
 	if err != nil {
-		// 处理错误
 		c.Error(err)
 		c.String(http.StatusInternalServerError, "Internal Server Error")
 		return
@@ -34,7 +33,7 @@ func collectorHandler(c *gin.Context) {
 		return
 	}
 	// 解密获得AES秘钥
-	aesKey, err := util.DecryptRSA(encryptedKey, privateKey)
+	aesKey, err := util.RSADecrypt(encryptedKey, privateKey)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return

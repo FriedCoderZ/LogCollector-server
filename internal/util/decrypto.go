@@ -2,16 +2,17 @@ package util
 
 import (
 	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/pem"
+	"errors"
 	"fmt"
 )
 
 // RSA解密函数
-func DecryptRSA(ciphertext, privateKey []byte) ([]byte, error) {
+func RSADecrypt(ciphertext, privateKey []byte) ([]byte, error) {
 	block, _ := pem.Decode(privateKey)
 	if block == nil {
 		return nil, fmt.Errorf("decode private key error")
@@ -24,33 +25,36 @@ func DecryptRSA(ciphertext, privateKey []byte) ([]byte, error) {
 	return rsa.DecryptPKCS1v15(rand.Reader, prv, ciphertext)
 }
 
-func EncryptAES(plaintext string, key []byte) (string, error) {
-	// 创建cipher
-	c, err := aes.NewCipher(key)
-	if err != nil {
-		return "", err
+// pkcs7UnPadding 填充的反向操作
+func pkcs7UnPadding(data []byte) ([]byte, error) {
+	length := len(data)
+	if length == 0 {
+		return nil, errors.New("加密字符串错误！")
 	}
-	ciphertext := make([]byte, len(plaintext))
-	// 加密
-	c.Encrypt(ciphertext, []byte(plaintext))
-	// Base64编码返回
-	ciphertextBase64 := base64.StdEncoding.EncodeToString(ciphertext)
-	return ciphertextBase64, nil
+	//获取填充的个数
+	unPadding := int(data[length-1])
+	return data[:(length - unPadding)], nil
 }
 
-func DecryptAES(ciphertextBase64 string, key []byte) (string, error) {
-	ciphertext, err := base64.StdEncoding.DecodeString(ciphertextBase64)
+// AesDecrypt 解密
+func AesDecrypt(data []byte, key []byte) ([]byte, error) {
+	//创建实例
+	block, err := aes.NewCipher(key)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	c, err := aes.NewCipher(key)
+	//获取块的大小
+	blockSize := block.BlockSize()
+	//使用cbc
+	blockMode := cipher.NewCBCDecrypter(block, key[:blockSize])
+	//初始化解密数据接收切片
+	crypted := make([]byte, len(data))
+	//执行解密
+	blockMode.CryptBlocks(crypted, data)
+	//去除填充
+	crypted, err = pkcs7UnPadding(crypted)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-
-	plaintext := make([]byte, len(ciphertext))
-	c.Decrypt(plaintext, ciphertext)
-
-	plaintextStr := string(plaintext[:])
-	return plaintextStr, nil
+	return crypted, nil
 }
