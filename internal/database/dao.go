@@ -10,7 +10,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Collector
@@ -53,7 +52,7 @@ func (c *Collector) GetAESKey() ([]byte, error) {
 	return c.AESKey, nil
 }
 
-func convertToNumber(m map[string]interface{}) {
+func convertToNumber(m map[string]interface{}) map[string]interface{} {
 	for key, value := range m {
 		switch v := value.(type) {
 		case string:
@@ -66,21 +65,23 @@ func convertToNumber(m map[string]interface{}) {
 			m[key] = int64(v.(float64))
 		}
 	}
+	return m
 }
 
-func (c *Collector) AppendLogs(logs []map[string]interface{}) error {
-	for _, log := range logs {
-		convertToNumber(log)
+func CreateLogs(logsM []map[string]interface{}, uuid string) error {
+	collection := GetDB().Collection("logs")
+	logs := []interface{}{}
+	for _, logMap := range logsM {
+		logs = append(logs, Log{
+			UUID: uuid,
+			Data: convertToNumber(logMap),
+		})
+
+		// 将日志插入 MongoDB
 	}
-	c.Logs = append(c.Logs, logs...)
-	filter := bson.M{"_id": c.ID}
-	update := bson.M{"$set": bson.M{"logs": c.Logs}}
-	opts := options.Update().SetUpsert(false)
-	db := GetDB()
-	collection := db.Collection("collectors")
-	_, err := collection.UpdateOne(context.TODO(), filter, update, opts)
+	_, err := collection.InsertMany(context.Background(), logs)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to insert log into MongoDB: %v", err)
 	}
 	return nil
 }

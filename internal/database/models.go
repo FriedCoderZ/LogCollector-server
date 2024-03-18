@@ -7,10 +7,14 @@ import (
 )
 
 type Collector struct {
-	ID        primitive.ObjectID       `bson:"_id,omitempty"`
-	UUID      string                   `bson:"uuid"`
-	AESKey    []byte                   `bson:"aes_key"`
-	Logs      []map[string]interface{} `bson:"logs"`
-	CreatedAt time.Time                `bson:"created_at"`
-	UpdatedAt time.Time                `bson:"updated_at"`
+	ID        primitive.ObjectID `bson:"_id,omitempty"`
+	UUID      string             `bson:"uuid"`
+	AESKey    []byte             `bson:"aes_key"`
+	CreatedAt time.Time          `bson:"created_at"`
+	UpdatedAt time.Time          `bson:"updated_at"`
+}
+
+type Log struct {
+	UUID string                 `bson:"uuid"`
+	Data map[string]interface{} `bson:"data"`
 }

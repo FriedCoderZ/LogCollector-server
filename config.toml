@@ -1,2 +1,5 @@
 [crypto]
-RSAPublicKeyPath ="/ouryun/LogCollector-server/publicKey.pem"  
+RSAPublicKeyPath ="/ouryun/LogCollector-server/publicKey.pem"
+
+[database]
+Address = "mongodb://localhost:27017"

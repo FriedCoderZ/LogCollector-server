@@ -8,7 +8,8 @@ import (
 
 // 读取配置文件config
 type Config struct {
-	Crypto CryptoConfig
+	Crypto   CryptoConfig
+	Database DataBaseConfig
 }
 
 var (
